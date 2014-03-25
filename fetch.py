@@ -5,10 +5,15 @@ import json
 from datetime import datetime
 import time
 import os 
+import numpy as np
+
+USER_FOLDER = "./users/"
+
+if not os.path.exists(USER_FOLDER):
+	os.mkdir(USER_FOLDER)
 user_name = sys.argv[1] 
-
-
 api_key = os.environ['LAST_FM_API_KEY']
+save_file = os.path.join(USER_FOLDER,user_name+".csv")
 
 
 if len(sys.argv)<3:
@@ -48,7 +53,16 @@ if len(songs)==0:
 	print "No songs for user {}".format(user_name)
 	sys.exit(0)
 
-songdf = pd.DataFrame(songs)
+songdf = pd.DataFrame(songs).drop_duplicates() # if there are two entries with same artist,song and timestamp, only one will be kept
+songdf.index.name = "idx"
+
+if os.path.exists(save_file):
+	songdf_archive = pd.read_csv(save_file, encoding='utf-8')
+	songdf_archive.date_listened = songdf_archive.date_listened.apply(lambda x: datetime.strptime(x,"%Y-%m-%d %H:%M:%S"))
+        songdf_archive = songdf_archive.set_index("idx")
+	songdf = songdf_archive.append(songdf).drop_duplicates()
+
+songdf.to_csv(save_file,encoding='utf-8')
 
 #unique tracks
 
@@ -78,6 +92,14 @@ songdf["day_of_week"] = songdf["date_listened"].apply(lambda x: x.strftime("%A")
 by_weekday = songdf.groupby("day_of_week")
 most_popular_day =  by_weekday.count().sort("song",ascending=False).iloc[0].name
 print "Most popular day : {}".format(most_popular_day)
+
+#alternative way for most active day
+songdf["cnt"]=1 # helper column to show that each entry counts for one
+#pivot call creates a pandas series, which can be ordered by value (the sum of 1s, ie the count)
+most_popular_day_alt = songdf.pivot_table(rows="day_of_week",  values="cnt", aggfunc=np.sum).order(ascending=False).index[0]
+assert(most_popular_day == most_popular_day_alt)
+
+
 
 
 
