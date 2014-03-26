@@ -1,6 +1,6 @@
 import pandas as pd
 import sys
-import urllib2
+import requests
 import json
 from datetime import datetime
 import time
@@ -22,7 +22,7 @@ def query_lastfm(user_name,api_key,page,to_date):
 	url="http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user="+user_name+"&api_key="+api_key+"&format=json&page="+str(page)+"&to="+str(to_date)
 	print "Loading stuff from url: {}".format(url)
 
-	return urllib2.urlopen(url).read()
+	return requests.get(url).text
 
 def parse_track_info(track):
 	artist = track["artist"]["#text"]
