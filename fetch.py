@@ -17,9 +17,12 @@ def datetime_to_epoch(dt):
     delta = dt - epoch
     return delta.total_seconds()
 
+def create_url(user_name,api_key,page,to_date):
+	return "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user="+user_name+"&api_key="+api_key+"&format=json&page="+str(page)+"&to="+str(to_date)
+
 def query_lastfm(user_name,api_key,page,to_date):
 	""" to_date must be in epoch timestamp format (integer)"""
-	url="http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user="+user_name+"&api_key="+api_key+"&format=json&page="+str(page)+"&to="+str(to_date)
+	url = create_url(user_name,api_key,page,to_date)
 	print "Loading stuff from url: {}".format(url)
 
 	return requests.get(url).text

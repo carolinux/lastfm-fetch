@@ -25,7 +25,7 @@ class TestLastfmFetch(unittest.TestCase):
 		page = 1
 		to_date = 10000
 		
-		url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user="+user_name+"&api_key="+api_key+"&format=json&page="+str(page)+"&to="+str(to_date)
+		url = fetch.create_url(user_name,api_key,page,to_date)
 		
 		httpretty.register_uri(httpretty.GET, url,
 				   body=lol_json)
