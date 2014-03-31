@@ -24,11 +24,14 @@ def query_lastfm(user_name,api_key,page,to_date):
 
 	return requests.get(url).text
 
-def parse_track_info(track):
+def parse_track_info(track, now):
 	artist = track["artist"]["#text"]
 	song = track["name"]
-	date_str = track["date"]["#text"]
-	date_listened = datetime.strptime(date_str,"%d %b %Y, %H:%M")
+	if "@attr" in track.keys() and track["@attr"]["nowplaying"]=="true":
+		date_listened = now
+	else:
+		date_str = track["date"]["#text"]
+		date_listened = datetime.strptime(date_str,"%d %b %Y, %H:%M")
 	return {"artist":artist,"song":song,"date_listened":date_listened}
 
 
@@ -103,9 +106,10 @@ def run_queries(query_limit,user_name,api_key,min_date,max_date):
 
 		page+=1
 
+		now = datetime.now()
 		for track,i in zip(tracks,range(0,len(tracks))):
 	
-			track_info = parse_track_info(track)
+			track_info = parse_track_info(track, now)
 
 			if track_info["date_listened"]<=max_date:
 				# if the date listened of the newly fetched track is before the most recent stored track 
