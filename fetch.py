@@ -1,180 +1,126 @@
 import pandas as pd
 import sys
-import requests
-import json
 from datetime import datetime
 import time
-import os 
-import numpy as np
+import os
+import random
+
+import queries
+import lastfm
+from datastore import CSVDataStore
 
 __author__ = 'Ariadni-Karolina Alexiou'
-__email__ = 'karolina.alexiou@teralytics.ch'
+__email__ = 'carolinegr@gmail.com'
 
-IDX_NAME="idx"
+USER_FOLDER = "./users/"
+DEFAULT_QUERY_LIMIT = 5
+API_ENV_NAME = "LAST_FM_API_KEY"
+# could also be lastFm's launch date instead of 1970
+DEFAULT_MIN_DATE = datetime.utcfromtimestamp(0)
+
+
+def main():
+
+    # parse args
+    api_key, user_name, query_limit = parse_args(sys.argv[1:])
+
+    # initialize data store and get existing date range
+    store = CSVDataStore(USER_FOLDER)
+    if store.user_exists(user_name):
+        min_date, max_date = store.get_date_range(user_name)
+    else:
+        min_date = DEFAULT_MIN_DATE
+        max_date = min_date
+
+    # get new data from last fm and merge it with existing data
+    new_songs = get_new_songs_as_df(query_limit, user_name, api_key, min_date, max_date)
+    store.add_songs_df(user_name, new_songs,mode="append")
+    all_songs = store.get_songs_as_df(user_name)
+
+    # print out statistics report
+    do_all_stats(all_songs)
+
+
+def parse_args(args):
+    api_key = os.environ[API_ENV_NAME]
+    user_name = args[0]
+    if len(args) < 2:
+        query_limit = DEFAULT_QUERY_LIMIT
+    else:
+        query_limit = int(args[1])
+    return api_key, user_name, query_limit
+
+
+def get_new_songs_as_df(max_queries, user_name, api_key, min_date, max_date):
+    """Get new (and backfilled) songs as a dataframe"""
+    songs = []
+    to_date_epoch = datetime_to_epoch(datetime.now())
+    page = 1
+    for query in range(max_queries):
+
+        time.sleep(random.randrange(1,6)) # so as to not flood the API with calls
+        try:
+            tracks = lastfm.get_tracks(user_name, api_key, page, to_date_epoch)
+        except lastfm.LastFmException, e:
+            print "Unable to fetch any more data for user {} from lastfm".format(user_name)
+            print "Json result: {}".format(e)
+            print "Will work with what I have"
+            break
+
+        for i,track  in enumerate(tracks):
+            track_info = lastfm.clean_track_info(track)
+            if can_start_backfilling(track_info, max_date):
+                # from now on will get songs before last stored date
+                to_date_epoch = datetime_to_epoch(min_date)
+                max_date = datetime.utcfromtimestamp(0)
+                print "Page {}, track {} already in data: Will use remaining {} queries" \
+                      " to query dates before and up to {}"\
+                    .format(page, i + 1, max_queries - (query+1), min_date)
+                page = 1
+                break
+            songs.append(track_info)
+        page+=1
+
+    # can build a dataframe easily from a list of json objects
+    songdf = pd.DataFrame(songs).drop_duplicates()  # if there are two entries with same artist,song and timestamp, only one will be kept
+
+    return songdf
+
+def can_start_backfilling(track_info, max_date):
+    # if the date listened of the newly fetched track is before the most recent stored track
+    # start backfilling songs before the earliest stored date for this user
+    return track_info["date_listened"] <= max_date
+
+
+def do_all_stats(songdf):
+
+    # unique tracks
+    uniques = queries.num_unique_songs(songdf)
+    print "Unique tracks: {} out of {}".format(uniques, len(songdf))
+
+    # top5 artists
+    top5 = queries.topk_artists(songdf, num=5)
+    print "top 5 artists"
+    print top5
+
+    # average number of tracks per day
+    songs_per_day = queries.num_unique_songs_per_day(songdf)
+    print "Average songs per day: {}".format(songs_per_day)
+
+    # most active day per week
+    most_popular_day, num_songs = queries.most_popular_day(songdf)
+    print "Most popular day : {} (songs: {})".format(most_popular_day, num_songs)
+
+    # alternative way for most active day
+    # to showcase pandas capabilities
+    most_popular_day_alt = queries.most_popular_day_with_pivot(songdf)
+    assert (most_popular_day == most_popular_day_alt)
 
 def datetime_to_epoch(dt):
     epoch = datetime.utcfromtimestamp(0)
     delta = dt - epoch
     return delta.total_seconds()
 
-def create_url(user_name,api_key,page,to_date):
-	return "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user="+user_name+"&api_key="+api_key+"&format=json&page="+str(page)+"&to="+str(to_date)
 
-def query_lastfm(user_name,api_key,page,to_date):
-	""" to_date must be in epoch timestamp format (integer)"""
-	url = create_url(user_name,api_key,page,to_date)
-	print "Loading stuff from url: {}".format(url)
-
-	return requests.get(url).text
-
-def parse_track_info(track, now):
-	artist = track["artist"]["#text"]
-	song = track["name"]
-	if "@attr" in track.keys() and track["@attr"]["nowplaying"]=="true":
-		date_listened = now
-	else:
-		date_str = track["date"]["#text"]
-		date_listened = datetime.strptime(date_str,"%d %b %Y, %H:%M")
-	return {"artist":artist,"song":song,"date_listened":date_listened}
-
-
-def main():
-	USER_FOLDER = "./users/"
-
-	## parse input data ##
-
-	if not os.path.exists(USER_FOLDER):
-		os.mkdir(USER_FOLDER)
-	user_name = sys.argv[1] 
-	api_key = os.environ['LAST_FM_API_KEY']
-	save_file = os.path.join(USER_FOLDER,user_name+".csv")
-	if os.path.exists(save_file):
-		have_data = True
-	else:
-		have_data = False
-
-	if len(sys.argv)<3:
-
-		query_limit = 5
-	else:
-		query_limit = int(sys.argv[2])
-
-	## load archived data, if any ##
-
-	if have_data == True:
-		songdf_archive = pd.read_csv(save_file, encoding='utf-8')
-		songdf_archive.date_listened = songdf_archive.date_listened.apply(lambda x: datetime.strptime(x,"%Y-%m-%d %H:%M:%S"))
-		songdf_archive = songdf_archive.set_index(IDX_NAME)
-		max_date = songdf_archive.date_listened.max()
-		min_date = songdf_archive.date_listened.min()
-	else:
-		songdf_archive = None
-		max_date = datetime.datetime.utcfromtimestamp(0)
-		min_date = max_date
-
-	songdf = run_queries(query_limit,user_name,api_key,min_date,max_date)
-
-	if songdf is None and have_data == False:
-		print "No songs for user {}".format(user_name)
-		sys.exit(0)
-
-	if have_data == True:
-		songdf = songdf_archive.append(songdf).drop_duplicates()
-		
-	songdf.to_csv(save_file,encoding='utf-8')
-
-	do_all_stats(songdf)
-
-def run_queries(query_limit,user_name,api_key,min_date,max_date):
-
-	songs = []
-
-	start_date_epoch = datetime_to_epoch(datetime.now())
-
-	page = 1
-
-	## query last.fm for recent tracks ##
-
-	for queries in range(0,query_limit):
-	
-		time.sleep(1)
-
-		text = query_lastfm(user_name,api_key,page,int(start_date_epoch))
-
-		try:
-			tracks = json.loads(text)["recenttracks"]["track"]
-		except:
-			print "Unexpected json format. Either no moar songs or last.fm thinks I am spamming.. will work with what I have"
-			break
-
-		page+=1
-
-		now = datetime.now()
-		for track,i in zip(tracks,range(0,len(tracks))):
-	
-			track_info = parse_track_info(track, now)
-
-			if track_info["date_listened"]<=max_date:
-				# if the date listened of the newly fetched track is before the most recent stored track 
-				# start teh backfilling
-				start_date_epoch = datetime_to_epoch(min_date)
-				max_date = datetime.utcfromtimestamp(0)
-				print "Page {}, track {} already in data: Will use remaining queries to query dates before and up to {}".format(page-1,i+1,min_date)
-				page=1			
-				break
-		
-			songs.append(track_info)
-
-	if len(songs)==0:
-		return None
-
-
-	songdf = pd.DataFrame(songs).drop_duplicates() # if there are two entries with same artist,song and timestamp, only one will be kept
-	songdf.index.name = IDX_NAME #could use timestamp as the index...
-
-	return songdf
-
-
-def do_all_stats(songdf):	
-
-	## Do statistics on the data , create views etc ##
-
-	#unique tracks
-
-	uniques = len(songdf.groupby(["song","artist"])) #how many groups of unique combinations of song/artist are there?
-	print "Unique tracks: {} out of {}".format(uniques,len(songdf))
-
-	#top5 artists
-
-	by_artist = songdf.groupby("artist")
-	top5 = by_artist.count().sort("artist",ascending=False)[:5]["artist"].index
-	top5counts = by_artist.count().sort("artist",ascending=False)[:5]["artist"].values
-	print "top 5 artists"
-	for idx,artist,cnt in zip(range(1,6),top5,top5counts):
-		print idx,artist,cnt
-
-	#average number of tracks per day
-
-	songdf["day"] = songdf["date_listened"].apply(lambda x: x.date()) # extract the date from datetime 
-
-	songs_per_day = (len(songdf)+0.0)/len(songdf.day.unique())
-
-	print "Average songs per day: {}".format(songs_per_day)
-
-	#most active day per week
-
-	songdf["day_of_week"] = songdf["date_listened"].apply(lambda x: x.strftime("%A"))
-	by_weekday = songdf.groupby("day_of_week")
-	most_popular_day =  by_weekday.count().sort("song",ascending=False).iloc[0].name
-	print "Most popular day : {}".format(most_popular_day)
-
-	#alternative way for most active day
-	songdf["cnt"]=1 # helper column to show that each entry counts for one
-	#pivot call creates a pandas series, which can be ordered by value (the sum of 1s, ie the count)
-	most_popular_day_alt = songdf.pivot_table(rows="day_of_week",  values="cnt", aggfunc=np.sum).order(ascending=False).index[0]
-	assert(most_popular_day == most_popular_day_alt)
-
-
-
-if __name__=="__main__":
-	main()	
+if __name__ == "__main__":
+    main()
