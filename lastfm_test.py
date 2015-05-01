@@ -46,7 +46,7 @@ class TestLastfmFetch(unittest.TestCase):
         info = lastfm.clean_track_info(track)
         self.assertEquals(info["song"], "Riverside - 2006 Remastered")
         self.assertEquals(info["artist"], "America")
-        self.assertLessEqual(datetime.now() - info["date_listened"],
+        self.assertLessEqual(datetime.utcnow() - info["date_listened"],
                              timedelta(minutes=1))  # because it is "now playing"
 
         track = tracks[1]

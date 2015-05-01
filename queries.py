@@ -2,6 +2,7 @@ import numpy as np
 
 __author__ = 'carolinux'
 
+"""Implementation of statistical queries on the song dataframes"""
 
 def topk_artists(songdf, num=10):
     by_artist = songdf.groupby("artist")

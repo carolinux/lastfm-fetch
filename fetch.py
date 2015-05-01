@@ -53,7 +53,7 @@ def parse_args(args):
 def get_new_songs_as_df(max_queries, user_name, api_key, min_date, max_date):
     """Get new (and backfilled) songs as a dataframe"""
     songs = []
-    to_date_epoch = datetime_to_epoch(datetime.now())
+    to_date_epoch = datetime_to_epoch(datetime.utcnow())
     page = 1
     for query in range(max_queries):
 

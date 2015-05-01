@@ -36,7 +36,7 @@ def clean_track_info(track):
     artist = track["artist"]["#text"]
     song = track["name"]
     if "@attr" in track.keys() and track["@attr"]["nowplaying"] == "true":
-        date_listened = datetime.now()
+        date_listened = datetime.utcnow()
     else:
         date_str = track["date"]["#text"]
         date_listened = datetime.strptime(date_str, "%d %b %Y, %H:%M")

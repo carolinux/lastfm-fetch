@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-"""Classes to help store, load and query the song data"""
+"""Classes to help store and load the user song data"""
 
 
 class DataStore:

@@ -15,3 +15,4 @@ If installing pandas via pip doesn't work try your OS's equivalent of:
 ```
 sudo apt-get install python-pandas
 ```
+The dates are stored and manipulated in UTC format to avoid ambiguity.
