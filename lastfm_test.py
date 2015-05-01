@@ -1,12 +1,10 @@
-import StringIO
-import fetch
-import pandas as pd
-import numpy as np
 import unittest
-from datetime import datetime, timedelta
-import requests
-import httpretty  # for graet http testing
+import httpretty  # for great http testing
 import json
+from datetime import datetime, timedelta
+
+import fetch
+import lastfm
 
 __author__ = 'Ariadni-Karolina Alexiou'
 __email__ = 'carolinegr@gmail.com'
@@ -15,7 +13,7 @@ __email__ = 'carolinegr@gmail.com'
 class TestLastfmFetch(unittest.TestCase):
     @httpretty.activate
     def test_parse_info(self):
-        """ convince yourself that http pretty does what you think it does """
+        """ Check the parsing of data from the lastfm api """
 
         json_result = """{"recenttracks":{"track":[{"artist":{"#text":"America",
         "mbid":"34cf95c7-4be9-4efd-a48a-c2ea4a0bb114"},"name":"Riverside - 2006 Remastered",
@@ -37,26 +35,24 @@ class TestLastfmFetch(unittest.TestCase):
         page = 1
         to_date = 10000
 
-        url = fetch.create_url(user_name, api_key, page, to_date)
+        url = lastfm.create_url(user_name, api_key, page, to_date)
 
         httpretty.register_uri(httpretty.GET, url,
                                body=json_result)
 
-        text = fetch.query_lastfm(user_name, api_key, page, to_date)
-        assert (json_result == text)
-        tracks = json.loads(text)["recenttracks"]["track"]
-        assert (len(tracks) == 2)
-        now = datetime.now()
+        tracks = lastfm.get_tracks(user_name, api_key, page, to_date)
+        self.assertEquals(len(tracks), 2)
         track = tracks[0]
-        info = fetch.parse_track_info(track, now)
-        assert (info["song"] == "Riverside - 2006 Remastered")
-        assert (info["artist"] == "America")
-        assert (info["date_listened"] == now)  # because it is "now playing"
+        info = lastfm.clean_track_info(track)
+        self.assertEquals(info["song"], "Riverside - 2006 Remastered")
+        self.assertEquals(info["artist"], "America")
+        self.assertLessEqual(datetime.now() - info["date_listened"], timedelta(minutes=1))  # because it is "now playing"
+
         track = tracks[1]
-        info = fetch.parse_track_info(track, now)
-        assert (info["song"] == "I Need You - 2006 Remastered")
-        assert (info["artist"] == "America")
-        assert (info["date_listened"] == datetime(2014, 3, 26, 17, 47))
+        info = lastfm.clean_track_info(track)
+        self.assertEquals(info["song"] , "I Need You - 2006 Remastered")
+        self.assertEquals(info["artist"] , "America")
+        self.assertEquals(info["date_listened"] , datetime(2014, 3, 26, 17, 47))
 
 
 if __name__ == '__main__':

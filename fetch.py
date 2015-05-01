@@ -58,13 +58,13 @@ def get_new_songs_as_df(max_queries, user_name, api_key, min_date, max_date):
     page = 1
     for query in range(max_queries):
 
-        time.sleep(random.randrange(1,6)) # so as to not flood the API with calls
+        time.sleep(random.randrange(2,6)) # so as to not flood the API with calls
         try:
             tracks = lastfm.get_tracks(user_name, api_key, page, to_date_epoch)
         except lastfm.LastFmException, e:
-            print "Unable to fetch any more data for user {} from lastfm".format(user_name)
+            print "Unable to fetch any more data for user {} from lastfm.".format(user_name)
             print "Json result: {}".format(e)
-            print "Will work with what I have"
+            print "Will work with what I have."
             break
 
         for i,track  in enumerate(tracks):

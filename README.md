@@ -10,4 +10,6 @@ run as:
 
 **python fetch.py username [number_of_pages_to_look_at]**
 
+Requirements
+
 
