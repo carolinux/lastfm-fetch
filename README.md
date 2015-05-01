@@ -10,6 +10,8 @@ run as:
 
 **python fetch.py username [number_of_pages_to_look_at]**
 
-Requirements
-
-
+Requires pandas (and httpretty for testing)
+If installing pandas via pip doesn't work try your OS's equivalent of:
+```
+sudo apt-get install python-pandas
+```
