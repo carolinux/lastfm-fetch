@@ -46,13 +46,14 @@ class TestLastfmFetch(unittest.TestCase):
         info = lastfm.clean_track_info(track)
         self.assertEquals(info["song"], "Riverside - 2006 Remastered")
         self.assertEquals(info["artist"], "America")
-        self.assertLessEqual(datetime.now() - info["date_listened"], timedelta(minutes=1))  # because it is "now playing"
+        self.assertLessEqual(datetime.now() - info["date_listened"],
+                             timedelta(minutes=1))  # because it is "now playing"
 
         track = tracks[1]
         info = lastfm.clean_track_info(track)
-        self.assertEquals(info["song"] , "I Need You - 2006 Remastered")
-        self.assertEquals(info["artist"] , "America")
-        self.assertEquals(info["date_listened"] , datetime(2014, 3, 26, 17, 47))
+        self.assertEquals(info["song"], "I Need You - 2006 Remastered")
+        self.assertEquals(info["artist"], "America")
+        self.assertEquals(info["date_listened"], datetime(2014, 3, 26, 17, 47))
 
 
 if __name__ == '__main__':

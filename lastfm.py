@@ -10,8 +10,9 @@ from datetime import datetime
 class LastFmException(Exception):
     pass
 
+
 def create_url(user_name, api_key, page, to_date):
-    return "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={}&api_key={}"\
+    return "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={}&api_key={}" \
            "&format=json&page={}&to={}".format(user_name, api_key, page, to_date)
 
 
@@ -40,4 +41,3 @@ def clean_track_info(track):
         date_str = track["date"]["#text"]
         date_listened = datetime.strptime(date_str, "%d %b %Y, %H:%M")
     return {"artist": artist, "song": song, "date_listened": date_listened}
-

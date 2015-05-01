@@ -8,6 +8,7 @@ from datetime import datetime
 
 """Classes to help store, load and query the song data"""
 
+
 class DataStore:
     """Abstract base class to define interface for functionality.
     Could extend this to a number of concrete implementations
@@ -33,17 +34,16 @@ class DataStore:
 
 
 class CSVDataStore(DataStore):
+    SEP = "|"  # song names unlikely to have pipes in the name
 
-    SEP = "|" # song names unlikely to have pipes in the name
     def __init__(self, folder):
         if not os.path.exists(folder):
             os.mkdir(folder)
         self.folder = folder
-        self.header = ["artist","date_listened","song"]
+        self.header = ["artist", "date_listened", "song"]
 
     def _user_file(self, username):
         return os.path.join(self.folder, username + ".csv")
-
 
     def user_exists(self, user):
         return os.path.exists(self._user_file(user))
@@ -64,13 +64,13 @@ class CSVDataStore(DataStore):
         return min_date, max_date
 
     def _get_empty_df(self):
-        df = pd.DataFrame(columns=["artist","date_listened","song"])
+        df = pd.DataFrame(columns=["artist", "date_listened", "song"])
         df.date_listened = df.date_listened.astype(np.datetime64)
         return df
 
     def add_songs_df(self, user, df, mode):
         if mode == "append":
-            existing_songs  = self.get_songs_as_df(user)
+            existing_songs = self.get_songs_as_df(user)
             all_songs = existing_songs.append(df)
         elif mode == "overwrite":
             all_songs = df
@@ -78,4 +78,3 @@ class CSVDataStore(DataStore):
             raise Exception("Invalid mode")
         # check schema
         all_songs.to_csv(self._user_file(user), index=False, encoding='utf-8', sep=self.SEP)
-

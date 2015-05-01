@@ -20,7 +20,6 @@ DEFAULT_MIN_DATE = datetime.utcfromtimestamp(0)
 
 
 def main():
-
     # parse args
     api_key, user_name, query_limit = parse_args(sys.argv[1:])
 
@@ -34,7 +33,7 @@ def main():
 
     # get new data from last fm and merge it with existing data
     new_songs = get_new_songs_as_df(query_limit, user_name, api_key, min_date, max_date)
-    store.add_songs_df(user_name, new_songs,mode="append")
+    store.add_songs_df(user_name, new_songs, mode="append")
     all_songs = store.get_songs_as_df(user_name)
 
     # print out statistics report
@@ -58,7 +57,7 @@ def get_new_songs_as_df(max_queries, user_name, api_key, min_date, max_date):
     page = 1
     for query in range(max_queries):
 
-        time.sleep(random.randrange(2,6)) # so as to not flood the API with calls
+        time.sleep(random.randrange(2, 6))  # so as to not flood the API with calls
         try:
             tracks = lastfm.get_tracks(user_name, api_key, page, to_date_epoch)
         except lastfm.LastFmException, e:
@@ -67,24 +66,26 @@ def get_new_songs_as_df(max_queries, user_name, api_key, min_date, max_date):
             print "Will work with what I have."
             break
 
-        for i,track  in enumerate(tracks):
+        for i, track in enumerate(tracks):
             track_info = lastfm.clean_track_info(track)
             if can_start_backfilling(track_info, max_date):
                 # from now on will get songs before last stored date
                 to_date_epoch = datetime_to_epoch(min_date)
                 max_date = datetime.utcfromtimestamp(0)
                 print "Page {}, track {} already in data: Will use remaining {} queries" \
-                      " to query dates before and up to {}"\
-                    .format(page, i + 1, max_queries - (query+1), min_date)
+                      " to query dates before and up to {}" \
+                    .format(page, i + 1, max_queries - (query + 1), min_date)
                 page = 1
                 break
             songs.append(track_info)
-        page+=1
+        page += 1
 
     # can build a dataframe easily from a list of json objects
-    songdf = pd.DataFrame(songs).drop_duplicates()  # if there are two entries with same artist,song and timestamp, only one will be kept
+    songdf = pd.DataFrame(
+        songs).drop_duplicates()  # if there are two entries with same artist,song and timestamp, only one will be kept
 
     return songdf
+
 
 def can_start_backfilling(track_info, max_date):
     # if the date listened of the newly fetched track is before the most recent stored track
@@ -93,7 +94,6 @@ def can_start_backfilling(track_info, max_date):
 
 
 def do_all_stats(songdf):
-
     # unique tracks
     uniques = queries.num_unique_songs(songdf)
     print "Unique tracks: {} out of {}".format(uniques, len(songdf))
@@ -115,6 +115,7 @@ def do_all_stats(songdf):
     # to showcase pandas capabilities
     most_popular_day_alt = queries.most_popular_day_with_pivot(songdf)
     assert (most_popular_day == most_popular_day_alt)
+
 
 def datetime_to_epoch(dt):
     epoch = datetime.utcfromtimestamp(0)
